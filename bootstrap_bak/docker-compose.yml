@@ -1,0 +1,83 @@
+version: '3.4'
+
+x-logging: &logging
+  logging:
+    driver: 'json-file'
+    options:
+      max-size: '25mb'
+      max-file: '3'
+
+x-restart-policy: &restart_policy
+  restart: unless-stopped
+
+x-shared_environment: &shared_environment
+  environment:
+    AIR_NATS_PASSWORD: 'air_nats_password'
+
+services:
+  mongodb:
+    <<: *restart_policy
+    <<: *logging
+    image: ${CONTAINER_REGISTRY:-cr.binalyze.com/binalyze}/air.mongo:${AIR_VERSION:-latest}
+    hostname: 'air.mongodb.server'
+
+  nats:
+    <<: *restart_policy
+    <<: *logging
+    <<: *shared_environment
+    image: ${CONTAINER_REGISTRY:-cr.binalyze.com/binalyze}/air.nats:${AIR_VERSION:-latest}
+    hostname: 'air.nats.server'
+    ports:
+      - 4222:4222
+
+  redis:
+    <<: *restart_policy
+    <<: *logging
+    image: ${CONTAINER_REGISTRY:-cr.binalyze.com/binalyze}/air.redis:${AIR_VERSION:-latest}
+    hostname: 'air.redis.server'
+
+  tokenservice:
+    depends_on:
+      - app
+    <<: *restart_policy
+    <<: *logging
+    image: nginx
+    volumes:
+        - ./volumes/:/usr/share/nginx/html
+        - ./share.nginx:/etc/nginx/nginx.conf
+    ports:
+        - "9999:80"
+
+  app:
+    depends_on:
+      - nats
+      - redis
+      - mongodb
+    <<: *restart_policy
+    <<: *logging
+    <<: *shared_environment
+    image: ${CONTAINER_REGISTRY:-cr.binalyze.com/binalyze}/air.console:${AIR_VERSION:-latest}
+    # when hostname changes, install scripts must also change
+    hostname: 'air.console.service'
+    volumes:
+      - ./volumes/web/config:/binalyze-air/private/server:rw
+      - ./volumes/app/binalyze-air/logs:/binalyze-air/logs:rw
+      - ./volumes/app/binalyze-air/backups:/binalyze-air/backups:rw
+      - ./volumes/app/binalyze-air/config:/binalyze-air/config:rw
+      - ./volumes/app/binalyze-air/data:/binalyze-air/data:rw
+
+  web:
+    <<: *restart_policy
+    <<: *logging
+    depends_on:
+      - app
+    image: ${CONTAINER_REGISTRY:-cr.binalyze.com/binalyze}/air.web:${AIR_VERSION:-latest}
+    hostname: 'air.web.server'
+    ports:
+      - 80:8080
+      - 443:8443
+      - 8443:8444
+    volumes:
+      - ./volumes/web/config:/config:ro
+    cap_drop:
+      - ALL
