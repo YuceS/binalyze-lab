@@ -1,4 +1,8 @@
 # BINALYZE AIR LAB Environment
+
+## ADD THIS https://medium.com/@vighnesh_prakash/part-04-documenting-terraform-modules-9e284d692d8
+
+
 ![alt text for screen readers](./Binalyze_lab_1.png "A simple lab setup")
 
 
